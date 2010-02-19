@@ -140,7 +140,7 @@ def add_to_recent_users(user):
 def get_recent_users():
   recent_users = memcache.get(ALL_USERS_LIST)
   if recent_users:
-    recent_users.sort(reverse=True)
+    recent_users.reverse()
   return recent_users
 
 class Home(webapp.RequestHandler):
