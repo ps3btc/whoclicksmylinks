@@ -11,11 +11,11 @@ import urllib2
 import time
 import logging
 import calendar
-import simplejson as json
 import wsgiref.handlers
+from django.utils import simplejson as json
+from google.appengine.api import memcache
 from google.appengine.ext import webapp
 from google.appengine.ext.webapp import template
-from google.appengine.api import memcache
 
 DATETIME_STRING_FORMAT = '%a %b %d %H:%M:%S +0000 %Y'
 BITLY_KEY = 'R_5e2a59607054db4cf2dc101cd84bf4fd'
