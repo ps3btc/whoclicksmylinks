@@ -1,0 +1,18 @@
+application: whoclicksmylinks
+version: 1
+runtime: python
+api_version: 1
+
+handlers:
+
+- url: /robots.txt
+  static_files: robots.txt
+  upload: robots.txt
+
+- url: /favicon.ico
+  static_files: favicon.ico
+  upload: favicon.ico
+
+- url: .*
+  script: whoclicksmylinks.py
+

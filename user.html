@@ -1,0 +1,18 @@
+{% extends "base.html" %}
+{% block content %}
+
+<table border="0">
+<tr><td>report for <a href="http://twitter.com/{{ summary.user }}">{{ summary.user }}</a></td></tr>
+<tr><td>recent tweets with links {{ summary.total_links }}</td></tr>
+<tr><td>clicks {{ summary.total_clicks }}</td></tr>
+<tr><td>followers {{ summary.followers }}</td></tr>
+</table>
+
+
+{% for res in result_list %}
+<p>
+  <b>{{ res.clicks }}</b> <i>({{ res.clickthrough }})</i>
+  <small>{{ res.text }} ({{ res.time_ago_str }})</small>
+</p>
+{% endfor %}
+{% endblock %}
