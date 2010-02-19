@@ -3,9 +3,20 @@
 
 <form name="input" action="/" method="get">
 <center>
-<p>enter a twitter username (eg <a href="/aplusk">aplusk</a>, <a href="/oprah">oprah</a>, <a href="/theellenshow">theellenshow</a>)</p>
+<p>enter a twitter username (eg <a href="/u/aplusk">aplusk</a>, <a href="/u/oprah">oprah</a>, <a href="/u/theellenshow">theellenshow</a>)</p>
 <input type="text" name="username" />
 <input type="submit" value="submit" />
+
+<p>
+<i>recently clicked</i>
+</p>
+
+<p>
+{% for res in recent_users %}
+<b><a href="/u/{{ res }}">{{ res }}</a></b>
+{% endfor %}
+</p>
 </center>
 </form>
+
 {% endblock %}

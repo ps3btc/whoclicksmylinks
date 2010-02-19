@@ -20,6 +20,7 @@ from google.appengine.ext.webapp import template
 DATETIME_STRING_FORMAT = '%a %b %d %H:%M:%S +0000 %Y'
 BITLY_KEY = 'R_5e2a59607054db4cf2dc101cd84bf4fd'
 BITLY_LOGIN = 'hnag'
+ALL_USERS_LIST = '6376097130910121270'
 
 def format_text(text):
   tokens = text.split()
@@ -119,25 +120,66 @@ def get_bitly_tweets(user):
   summary = Summary(user, total_links, total_clicks, followers_count)
   return results, summary
 
+def add_to_recent_users(user):
+  all_users_list = memcache.get(ALL_USERS_LIST)
+
+  if all_users_list is None:
+    logging.info('memcache: Empty ALL_USERS_LIST adding first user %s', user)
+    memcache.add(ALL_USERS_LIST, [ user ], 86400)
+    return
+    
+  if user not in all_users_list:
+    all_users_list.append(user)
+    memcache.delete(ALL_USERS_LIST)
+    memcache.add(ALL_USERS_LIST, all_users_list, 86400)
+    logging.info('memcache: Adding user to ALL_USERS_LIST %s (%d)',
+                 user, len(all_users_list))
+  else:
+    logging.info('memcache: User already in ALL_USERS_LIST %s', user)
+
+def get_recent_users():
+  recent_users = memcache.get(ALL_USERS_LIST)
+  recent_users.sort(reverse=True)
+  return recent_users
+
 class Home(webapp.RequestHandler):
   def get(self):
+    stats = memcache.get_stats()
     username = self.request.get('username')
     if username and len(username) > 0:
-      self.redirect('/%s' % username, permanent=False)
+      self.redirect('/u/%s' % username, permanent=False)
       return
+    for z in get_recent_users():
+      logging.info(z)
     path = os.path.join(os.path.dirname(__file__), 'home.html')
-    self.response.out.write(template.render(path, {}))
+    self.response.out.write(template.render(path, {
+        'show_why': True,
+        'recent_users': get_recent_users(),
+        }))
+
+class About(webapp.RequestHandler):
+  def get(self):
+    path = os.path.join(os.path.dirname(__file__), 'about.html')
+    self.response.out.write(template.render(path, {
+        'show_why': False
+        }))
+
+class FlushMemcache(webapp.RequestHandler):
+  def get(self):
+    if memcache.flush_all():
+      logging.info('memcache: flushed all')
+    self.redirect('/', permanent=False)
 
 class User(webapp.RequestHandler):
   def get(self, username):
     username = unicode(urllib.unquote(username), 'utf-8')
     render_page = memcache.get(username)
-
     if render_page:
+      add_to_recent_users(username)
       self.response.out.write(render_page)
-      logging.info('Hit memcache for %s', username)
+      logging.info('memcache: retrieve results for %s', username)
       return
-
+    add_to_recent_users(username)
     result_list = None
     summary = None
     try:
@@ -150,6 +192,7 @@ class User(webapp.RequestHandler):
     template_values = {
         'result_list' : result_list,
         'summary' : summary,
+        'show_why': False,
     }
     render_page = template.render(path, template_values)
     memcache.add(username, render_page, 86400)
@@ -158,7 +201,9 @@ class User(webapp.RequestHandler):
 def main():
   application = webapp.WSGIApplication([
       ('/', Home),
-      (r'/(.*)', User),
+      (r'/u/(.*)', User),
+      ('/about', About),
+      ('/flushmemcache', FlushMemcache),
       ], debug=True)
   wsgiref.handlers.CGIHandler().run(application)
 

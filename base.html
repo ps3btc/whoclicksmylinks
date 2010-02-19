@@ -28,10 +28,18 @@
   </head>
   <body>
     <h1>does anyone click the bit.ly links that i tweet?</h1>
+        <center>        
+        {% if show_why %}
+        <a href="/about">why?</a>
+        {% else %}
+        <a href="/">go home</a>
+        {% endif %}
+        </center>
+
     {% block content %}{% endblock %}
     <hr>
     <center>
-	<a href="/">who clicks my bit.ly links?</a> &copy; <a href="http://www.linkybinky.com">linkybinky</a> 2010
+	<a href="/">who clicks my bit.ly links?</a> &copy; <a href="http://hnagweb.appspot.com">Hareesh Nagarajan</a> 2010
     </center>
   </body>
 </html>
