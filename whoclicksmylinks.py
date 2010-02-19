@@ -174,11 +174,10 @@ class User(webapp.RequestHandler):
     username = unicode(urllib.unquote(username), 'utf-8')
     render_page = memcache.get(username)
     if render_page:
-      add_to_recent_users(username)
       self.response.out.write(render_page)
       logging.info('memcache: retrieve results for %s', username)
       return
-    add_to_recent_users(username)
+    
     result_list = None
     summary = None
     try:
@@ -186,7 +185,8 @@ class User(webapp.RequestHandler):
     except:
       self.redirect('/', permanent=False)
       return
-    
+
+    add_to_recent_users(username)
     path = os.path.join(os.path.dirname(__file__), 'user.html')
     template_values = {
         'result_list' : result_list,
