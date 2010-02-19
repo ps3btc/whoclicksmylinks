@@ -121,26 +121,39 @@ def get_bitly_tweets(user):
 
 class Home(webapp.RequestHandler):
   def get(self):
+    username = self.request.get('username')
+    if username and len(username) > 0:
+      self.redirect('/%s' % username, permanent=False)
+      return
     path = os.path.join(os.path.dirname(__file__), 'home.html')
     self.response.out.write(template.render(path, {}))
 
 class User(webapp.RequestHandler):
   def get(self, username):
     username = unicode(urllib.unquote(username), 'utf-8')
+    render_page = memcache.get(username)
+
+    if render_page:
+      self.response.out.write(render_page)
+      logging.info('Hit memcache for %s', username)
+      return
+
     result_list = None
     summary = None
-    #try:
-    result_list, summary = get_bitly_tweets(username)
-    #except:
-    #  self.redirect('/', permanent=False)
-    #  return
+    try:
+      result_list, summary = get_bitly_tweets(username)
+    except:
+      self.redirect('/', permanent=False)
+      return
     
     path = os.path.join(os.path.dirname(__file__), 'user.html')
     template_values = {
         'result_list' : result_list,
         'summary' : summary,
     }
-    self.response.out.write(template.render(path, template_values))
+    render_page = template.render(path, template_values)
+    memcache.add(username, render_page, 86400)
+    self.response.out.write(render_page)
 
 def main():
   application = webapp.WSGIApplication([
