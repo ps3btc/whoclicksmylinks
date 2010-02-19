@@ -139,7 +139,8 @@ def add_to_recent_users(user):
 
 def get_recent_users():
   recent_users = memcache.get(ALL_USERS_LIST)
-  recent_users.sort(reverse=True)
+  if recent_users:
+    recent_users.sort(reverse=True)
   return recent_users
 
 class Home(webapp.RequestHandler):
@@ -149,8 +150,6 @@ class Home(webapp.RequestHandler):
     if username and len(username) > 0:
       self.redirect('/u/%s' % username, permanent=False)
       return
-    for z in get_recent_users():
-      logging.info(z)
     path = os.path.join(os.path.dirname(__file__), 'home.html')
     self.response.out.write(template.render(path, {
         'show_why': True,
