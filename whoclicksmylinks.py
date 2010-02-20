@@ -27,13 +27,13 @@ def format_text(text):
   formatted = []
   for token in tokens:
     if token.find('@') == 0:
-      at = '@<a href="/u/%s">%s</a>' % (token[1:], token[1:])
+      at = '@<a class="user" href="/u/%s">%s</a>' % (token[1:], token[1:])
       formatted.append(at)
     elif token.find('#') == 0:
-      hashtag = '<a href="http://search.twitter.com/search?q=%%23%s">%s</a>' % (token[1:], token)
+      hashtag = '<a class="hashtag" href="http://search.twitter.com/search?q=%%23%s">%s</a>' % (token[1:], token)
       formatted.append('%s' % hashtag)
     elif token.find('http://') == 0:
-      http_link = '<a href="%s">%s</a>' % (token, token)
+      http_link = '<a class="httplink" href="%s">%s</a>' % (token, token)
       formatted.append(http_link)
     else:
       formatted.append(token)
