@@ -190,7 +190,6 @@ class FlushMemcache(webapp.RequestHandler):
   def get(self):
     if memcache.flush_all():
       logging.info('memcache: flushed all')
-    self.redirect('/', permanent=False)
 
 class User(webapp.RequestHandler):
   def show_home_error(self, error_text):
