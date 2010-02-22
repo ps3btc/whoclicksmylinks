@@ -20,6 +20,7 @@
    a.user {color:#FFFF00; text-decoration:none; font-weight:bold; text-decoration: underline;} 
    a.hashtag {color:#00FF00} 
    a.httplink {color:#00FF00} 
+   p.error {color:#FF0033}
    .title {color: #FFF; font-size: 130%;}
   </style>
 </head>
@@ -30,19 +31,17 @@
 
   </head>
   <body>
-    <h1>does anyone click the bit.ly links that i tweet?</h1>
+    <h1><u><a href="/">anyone click the bit.ly links that i tweet?</a></u></h1>
         <center>        
         {% if show_why %}
         <a href="/about">why?</a>
-        {% else %}
-        <a href="/">go home</a>
         {% endif %}
         </center>
 
     {% block content %}{% endblock %}
     <hr>
     <center>
-	<a href="/">who clicks my bit.ly links?</a> &copy; <a href="http://hnagweb.appspot.com">Hareesh Nagarajan</a> 2010
+	&copy; <a href="http://hnagweb.appspot.com">Hareesh Nagarajan</a> 2010
     </center>
 <script type="text/javascript">
 var gaJsHost = (("https:" == document.location.protocol) ? "https://ssl." : "http://www.");

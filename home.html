@@ -7,9 +7,15 @@
 <input type="text" name="username" />
 <input type="submit" value="submit" />
 
+{% if error_text %}
+<p class="error">{{ error_text }}</p>
+{% endif %}
+
+{% if recent_users %}
 <p>
 <i>twitter usernames that were recently tested</i>
 </p>
+{% endif %}
 
 <p>
 {% for res in recent_users %}

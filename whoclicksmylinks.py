@@ -22,6 +22,15 @@ BITLY_KEY = 'R_5e2a59607054db4cf2dc101cd84bf4fd'
 BITLY_LOGIN = 'hnag'
 ALL_USERS_LIST = '6376097130910121270'
 
+class BitlyError(Exception):
+  pass
+
+class InvalidUserError(Exception):
+  pass
+
+class TwitterError(Exception):
+  pass
+
 def format_text(text):
   tokens = text.split()
   formatted = []
@@ -60,7 +69,12 @@ def extract_bitly_shortcut(text):
 def get_clicks(shortcut):
   url = ('http://api.bit.ly/stats?version=2.0.1&hash=%s&login=%s&apiKey=%s'
          % (shortcut, BITLY_LOGIN, BITLY_KEY))
-  handle = urllib2.urlopen(url)
+  try:
+    handle = urllib2.urlopen(url)
+  except:
+    logging.error('Cannot fetch %s', url)
+    raise BitlyError
+  
   data = json.loads(handle.read())
   clicks = None
   try:
@@ -97,7 +111,15 @@ def commaify(value):
 
 def get_bitly_tweets(user):
   url = 'http://twitter.com/statuses/user_timeline/%s.json?count=200' % user
-  handle=urllib2.urlopen(url)
+  try:
+    handle=urllib2.urlopen(url)
+  except urllib2.HTTPError, err:
+    if err.code == 404:
+      logging.error('Failed to fetch, Invalid User: %s', url)
+      raise InvalidUserError
+    else:
+      logging.error('Twitter error %s (%s)', url, err.code)
+      raise TwitterError
 
   results = []
   reference_epoch = time.time()
@@ -154,6 +176,7 @@ class Home(webapp.RequestHandler):
     self.response.out.write(template.render(path, {
         'show_why': True,
         'recent_users': get_recent_users(),
+        'error_text' : None,
         }))
 
 class About(webapp.RequestHandler):
@@ -170,6 +193,14 @@ class FlushMemcache(webapp.RequestHandler):
     self.redirect('/', permanent=False)
 
 class User(webapp.RequestHandler):
+  def show_home_error(self, error_text):
+    path = os.path.join(os.path.dirname(__file__), 'home.html')
+    self.response.out.write(template.render(path, {
+        'show_why': True,
+        'recent_users': get_recent_users(),
+        'error_text' : error_text,
+        }))
+  
   def get(self, username):
     username = unicode(urllib.unquote(username), 'utf-8')
     render_page = memcache.get(username)
@@ -182,9 +213,12 @@ class User(webapp.RequestHandler):
     summary = None
     try:
       result_list, summary = get_bitly_tweets(username)
-    except:
-      self.redirect('/', permanent=False)
-      return
+    except TwitterError:
+      return self.show_home_error('oh noes! our connection to twitter broke. try again?')
+    except InvalidUserError:
+      return self.show_home_error('oh noes! %s does not exist in twitter! believe us! try again?' % username)
+    except BitlyError:
+      return self.show_home_error('oh noes! our connection to bit.ly broke. try again?')
 
     add_to_recent_users(username)
     path = os.path.join(os.path.dirname(__file__), 'user.html')
