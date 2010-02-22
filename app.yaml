@@ -13,6 +13,10 @@ handlers:
   static_files: favicon.ico
   upload: favicon.ico
 
+- url: /tweet_this.png
+  static_files: tweet_this.png
+  upload: tweet_this.png
+
 - url: .*
   script: whoclicksmylinks.py
 

@@ -223,6 +223,7 @@ class User(webapp.RequestHandler):
     path = os.path.join(os.path.dirname(__file__), 'user.html')
     template_values = {
         'result_list' : result_list,
+        'username' : username,
         'summary' : summary,
         'show_why': False,
     }
