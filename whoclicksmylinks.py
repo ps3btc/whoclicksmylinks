@@ -11,9 +11,14 @@ import urllib2
 import time
 import logging
 import calendar
+import datetime
 import wsgiref.handlers
+
+import celebs
+
 from django.utils import simplejson as json
 from google.appengine.api import memcache
+from google.appengine.ext import db
 from google.appengine.ext import webapp
 from google.appengine.ext.webapp import template
 
@@ -91,6 +96,50 @@ class ReportEntry:
     self.text = format_text(text)
     self.clickthrough = '%.2f%%' % ((clicks / followers) * 100.0)
 
+class Report(db.Model):
+  username = db.StringProperty(indexed=True)
+  last_updated = db.DateTimeProperty(auto_now_add=True, required=True)
+  # This is very bad, but I'm very lazy. Let us just store the entire
+  # HTML page here. How gross is that?
+  page = db.BlobProperty()
+
+def does_user_report_exist(user):
+  result_list = db.GqlQuery(
+      "SELECT * FROM Report WHERE username = :u LIMIT 1",
+      u=user)
+
+  for result in result_list:
+    logging.info('Found user in db %s (%s %d)',
+                 user,
+                 result.last_updated,
+                 len(result.page))
+    return (result.last_updated, result.page)
+  
+  logging.info('Did not find user in db %s', user)
+  return (None, None)
+
+def add_user_report(user, page):
+  # First delete all entries (there must only be 1) for the user.
+  result_list = db.GqlQuery(
+      "SELECT * FROM Report WHERE username = :u",
+      u=user)
+  db.delete(result_list)
+
+  # Now, add the entry.
+  obj = Report()
+  obj.username = user
+  obj.page = db.Blob(page)
+  db.put(obj)
+  logging.info('Wrote record for %s (page size %d %d)',
+               user, len(page), len(obj.page))
+
+def get_users_in_db():
+  user_list = []
+  result_list = db.GqlQuery("SELECT * FROM Report ORDER BY last_updated DESC LIMIT 100")
+  for result in result_list:
+    user_list.append(result.username)
+  return user_list
+
 class Summary:
   def __init__(self, user, total_links, total_clicks, followers):
     self.user = user
@@ -160,6 +209,9 @@ def add_to_recent_users(user):
     logging.info('memcache: User already in ALL_USERS_LIST %s', user)
 
 def get_recent_users():
+  # Screw memcache, just get the users in the DB.
+  return get_users_in_db()
+  
   recent_users = memcache.get(ALL_USERS_LIST)
   if recent_users:
     recent_users.reverse()
@@ -186,10 +238,27 @@ class About(webapp.RequestHandler):
         'show_why': False
         }))
 
+class Celebs(webapp.RequestHandler):
+  def get(self):
+    path = os.path.join(os.path.dirname(__file__), 'celebrities.html')
+    self.response.out.write(template.render(path, {
+        'show_why': False,
+        'celebrities' : celebs.CELEBS,
+        }))    
+
 class FlushMemcache(webapp.RequestHandler):
   def get(self):
     if memcache.flush_all():
       logging.info('memcache: flushed all')
+
+class FlushDb(webapp.RequestHandler):
+  def get(self):
+    #
+    # Dangerous! FOR TESTING ONLY!
+    #
+    result_list = db.GqlQuery("SELECT * FROM Report")
+    db.delete(result_list)
+    logging.info('deleted everything from DB!')
 
 class User(webapp.RequestHandler):
   def show_home_error(self, error_text):
@@ -201,34 +270,54 @@ class User(webapp.RequestHandler):
         }))
   
   def get(self, username):
+    # 1) try to fetch the user if the user's page exists in memcache.
     username = unicode(urllib.unquote(username), 'utf-8')
     render_page = memcache.get(username)
     if render_page:
       self.response.out.write(render_page)
       logging.info('memcache: retrieve results for %s', username)
       return
-    
+
+    # 2) try and fetch the user's page from the datastore.
+    (last_updated, render_page) = does_user_report_exist(username)
+    if last_updated and render_page:
+      self.response.out.write(render_page)
+      return
+
+    # 3) Make urlfetch requests to twitter and bit.ly.
+    created_at = datetime.datetime.now()
     result_list = None
     summary = None
     try:
       result_list, summary = get_bitly_tweets(username)
     except TwitterError:
-      return self.show_home_error('oh noes! our connection to twitter broke. try again?')
+      return self.show_home_error(
+          'oh noes! our connection to twitter broke. try again?')
     except InvalidUserError:
-      return self.show_home_error('oh noes! %s does not exist in twitter! you know that :)' % username)
+      return self.show_home_error(
+          'oh noes! %s does not exist in twitter! u know that :)' % username)
     except BitlyError:
-      return self.show_home_error('oh noes! our connection to bit.ly broke. try again?')
-
+      return self.show_home_error(
+          'oh noes! our connection to bit.ly broke. try again?')
     add_to_recent_users(username)
     path = os.path.join(os.path.dirname(__file__), 'user.html')
     template_values = {
         'result_list' : result_list,
         'username' : username,
         'summary' : summary,
+        'created_at' : created_at,
         'show_why': False,
     }
+
+    # Prepare the page to render
     render_page = template.render(path, template_values)
+
+    # Add the user -> page to memcache.
     memcache.add(username, render_page, 86400)
+
+    # Add the user -> page to the datastore.
+    add_user_report(username, render_page)
+
     self.response.out.write(render_page)
 
 def main():
@@ -236,7 +325,9 @@ def main():
       ('/', Home),
       (r'/u/(.*)', User),
       ('/about', About),
+      ('/celebrities', Celebs),
       ('/flushmemcache', FlushMemcache),
+      ('/flushdb', FlushDb),
       ], debug=True)
   wsgiref.handlers.CGIHandler().run(application)
 

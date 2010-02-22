@@ -1,5 +1,5 @@
 application: whoclicksmylinks
-version: 1
+version: 1u1
 runtime: python
 api_version: 1
 
@@ -16,6 +16,14 @@ handlers:
 - url: /tweet_this.png
   static_files: tweet_this.png
   upload: tweet_this.png
+
+- url: /flushmemcache
+  script: whoclicksmylinks.py
+  login: admin
+  
+- url: /flushdb
+  script: whoclicksmylinks.py
+  login: admin
 
 - url: .*
   script: whoclicksmylinks.py
