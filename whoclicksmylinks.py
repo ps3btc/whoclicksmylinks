@@ -215,7 +215,7 @@ class User(webapp.RequestHandler):
     except TwitterError:
       return self.show_home_error('oh noes! our connection to twitter broke. try again?')
     except InvalidUserError:
-      return self.show_home_error('oh noes! %s does not exist in twitter! believe us! try again?' % username)
+      return self.show_home_error('oh noes! %s does not exist in twitter! you know that :)' % username)
     except BitlyError:
       return self.show_home_error('oh noes! our connection to bit.ly broke. try again?')
 
