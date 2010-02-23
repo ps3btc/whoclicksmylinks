@@ -1,5 +1,5 @@
 application: whoclicksmylinks
-version: 1u1
+version: 1u2
 runtime: python
 api_version: 1
 
@@ -22,6 +22,10 @@ handlers:
   login: admin
   
 - url: /flushdb
+  script: whoclicksmylinks.py
+  login: admin
+
+- url: /cron
   script: whoclicksmylinks.py
   login: admin
 

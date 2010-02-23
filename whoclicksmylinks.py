@@ -67,7 +67,7 @@ def get_time_ago(reference_epoch, created_at):
 
 def extract_bitly_shortcut(text):
   for word in text.split():
-    if word.find('http://bit.ly') != -1:
+    if word.find('http://bit.ly') != -1 or word.find('http://j.mp') != -1:
       return word.split('/')[-1:][0]
   return None
 
@@ -227,7 +227,7 @@ class Home(webapp.RequestHandler):
     path = os.path.join(os.path.dirname(__file__), 'home.html')
     self.response.out.write(template.render(path, {
         'show_why': True,
-        'recent_users': get_recent_users(),
+        'recent_users': get_recent_users()[:10],
         'error_text' : None,
         }))
 
@@ -272,6 +272,12 @@ class User(webapp.RequestHandler):
   def get(self, username):
     # 1) try to fetch the user if the user's page exists in memcache.
     username = unicode(urllib.unquote(username), 'utf-8')
+
+    # Remove the '@' from the username if it exists
+    if username[0] == '@':
+      logging.info('Removing the leading @ from the username %s', username)
+      username = username[1:]
+      
     render_page = memcache.get(username)
     if render_page:
       self.response.out.write(render_page)
@@ -320,6 +326,47 @@ class User(webapp.RequestHandler):
 
     self.response.out.write(render_page)
 
+class Cron(webapp.RequestHandler):
+  def refresh(self, username, created_at):
+    result_list = None
+    summary = None
+    try:
+      result_list, summary = get_bitly_tweets(username)
+    except:
+      logging.error('Could not refresh %s', username)
+      return
+    add_to_recent_users(username)
+    path = os.path.join(os.path.dirname(__file__), 'user.html')
+    template_values = {
+        'result_list' : result_list,
+        'username' : username,
+        'summary' : summary,
+        'created_at' : created_at,
+        'show_why': False,
+    }
+    render_page = template.render(path, template_values)
+    memcache.add(username, render_page, 86400)
+    add_user_report(username, render_page)
+  
+  def get(self):
+    refresh = []
+    time_now = datetime.datetime.now()
+    result_list = db.GqlQuery("SELECT * FROM Report ORDER By last_updated LIMIT 20")
+    for res in result_list:
+      delta = time_now - res.last_updated
+      logging.info('Trying to refresh %s (%d)', res.username, delta.seconds)
+      if delta.seconds >= 86400:
+        refresh.append(res.username)
+        logging.info('Adding %s to the refresh list', res.username)
+      if len(refresh) > 2:
+        break
+
+    if len(refresh) < 1:
+      logging.error('Consider increasing the refresh LIMIT to greater than 20')
+      
+    for user in refresh:
+      self.refresh(user, time_now)
+      
 def main():
   application = webapp.WSGIApplication([
       ('/', Home),
@@ -328,6 +375,7 @@ def main():
       ('/celebrities', Celebs),
       ('/flushmemcache', FlushMemcache),
       ('/flushdb', FlushDb),
+      ('/cron', Cron),
       ], debug=True)
   wsgiref.handlers.CGIHandler().run(application)
 
