@@ -271,7 +271,7 @@ class User(webapp.RequestHandler):
     path = os.path.join(os.path.dirname(__file__), 'home.html')
     self.response.out.write(template.render(path, {
         'show_why': True,
-        'recent_users': get_recent_users(),
+        'recent_users': get_recent_users()[:10],
         'error_text' : error_text,
         }))
   
