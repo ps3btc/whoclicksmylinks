@@ -178,7 +178,7 @@ def get_bitly_tweets(user):
   total_links = 0
   for result in data:
     text = result['text']
-    if text.find('bit.ly') != -1 and text.find('RT') == -1:
+    if (text.find('bit.ly') != -1 or text.find('j.mp') != -1) and text.find('RT') == -1:
       time_ago_str = get_time_ago(reference_epoch, result['created_at'])
       shortcut = extract_bitly_shortcut(text)
       if shortcut:
