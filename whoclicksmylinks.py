@@ -33,6 +33,9 @@ class BitlyError(Exception):
 class InvalidUserError(Exception):
   pass
 
+class ProtectedUserError(Exception):
+  pass
+
 class TwitterError(Exception):
   pass
 
@@ -166,6 +169,9 @@ def get_bitly_tweets(user):
     if err.code == 404:
       logging.error('Failed to fetch, Invalid User: %s', url)
       raise InvalidUserError
+    elif err.code == 401:
+      logging.error('User has protected twitter feed %s', url)
+      raise ProtectedUserError
     else:
       logging.error('Twitter error %s (%s)', url, err.code)
       raise TwitterError
@@ -299,6 +305,9 @@ class User(webapp.RequestHandler):
     except TwitterError:
       return self.show_home_error(
           'oh noes! our connection to twitter broke. try again?')
+    except ProtectedUserError:
+      return self.show_home_error(
+          'NO DONUT4U! %s has protected their twitter feed.' % username)
     except InvalidUserError:
       return self.show_home_error(
           'oh noes! %s does not exist in twitter! u know that :)' % username)
