@@ -360,7 +360,7 @@ class Cron(webapp.RequestHandler):
   def get(self):
     refresh = []
     time_now = datetime.datetime.now()
-    result_list = db.GqlQuery("SELECT * FROM Report ORDER By last_updated ASC LIMIT 20")
+    result_list = db.GqlQuery("SELECT * FROM Report ORDER By last_updated ASC LIMIT 10")
     for res in result_list:
       delta = time_now - res.last_updated
       if delta.seconds >= 86400:
