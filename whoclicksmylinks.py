@@ -363,7 +363,6 @@ class Cron(webapp.RequestHandler):
     result_list = db.GqlQuery("SELECT * FROM Report ORDER By last_updated ASC LIMIT 20")
     for res in result_list:
       delta = time_now - res.last_updated
-      logging.info('Trying to refresh %s (%d)', res.username, delta.seconds)
       if delta.seconds >= 86400:
         refresh.append(res.username)
         logging.info('Adding %s to the refresh list', res.username)
