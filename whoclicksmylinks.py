@@ -360,18 +360,15 @@ class Cron(webapp.RequestHandler):
   def get(self):
     refresh = []
     time_now = datetime.datetime.now()
-    result_list = db.GqlQuery("SELECT * FROM Report ORDER By last_updated ASC LIMIT 10")
+    result_list = db.GqlQuery("SELECT * FROM Report ORDER By last_updated ASC LIMIT 1")
     for res in result_list:
       delta = time_now - res.last_updated
+      logging.info('cron: user %s Now: %s/Processing: %s (delta %d)' %
+                   (res.username, str(time_now), str(res.last_updated),
+                    delta.seconds))
       if delta.seconds >= 72000:
         refresh.append(res.username)
-        logging.info('Adding %s to the refresh list', res.username)
-      if len(refresh) == 1:
-        break
-
-    if len(refresh) < 1:
-      logging.error('Consider increasing the refresh LIMIT to greater than 20')
-      
+        logging.info('cron: Adding %s to the refresh list', res.username)
     for user in refresh:
       self.refresh(user, time_now)
       
