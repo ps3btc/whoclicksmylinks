@@ -366,7 +366,7 @@ class Cron(webapp.RequestHandler):
       if delta.seconds >= 72000:
         refresh.append(res.username)
         logging.info('Adding %s to the refresh list', res.username)
-      if len(refresh) > 2:
+      if len(refresh) == 1:
         break
 
     if len(refresh) < 1:
