@@ -175,6 +175,9 @@ def get_bitly_tweets(user):
     else:
       logging.error('Twitter error %s (%s)', url, err.code)
       raise TwitterError
+  except:
+    logging.error('Stupid urlfetch error')
+    raise TwitterError
 
   results = []
   reference_epoch = time.time()
