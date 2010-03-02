@@ -12,6 +12,7 @@ import time
 import logging
 import calendar
 import datetime
+import random
 import wsgiref.handlers
 
 import celebs
@@ -21,6 +22,7 @@ from google.appengine.api import memcache
 from google.appengine.ext import db
 from google.appengine.ext import webapp
 from google.appengine.ext.webapp import template
+from google.appengine.api import urlfetch
 
 DATETIME_STRING_FORMAT = '%a %b %d %H:%M:%S +0000 %Y'
 BITLY_KEY = 'R_5e2a59607054db4cf2dc101cd84bf4fd'
@@ -77,13 +79,19 @@ def extract_bitly_shortcut(text):
 def get_clicks(shortcut):
   url = ('http://api.bit.ly/stats?version=2.0.1&hash=%s&login=%s&apiKey=%s'
          % (shortcut, BITLY_LOGIN, BITLY_KEY))
+
+  result = None
   try:
-    handle = urllib2.urlopen(url)
-  except:
-    logging.error('Cannot fetch %s', url)
+    result = urlfetch.fetch(url)
+  except Exception, e:
+    logging.error('motherfucking urlfetch timeout %s (%s)', url, str(e))
+    raise TwitterError
+
+  if result.status_code != 200:
+    logging.error('urlfetch returned %d', result.status_code)
     raise BitlyError
-  
-  data = json.loads(handle.read())
+
+  data = json.loads(result.content)
   clicks = None
   try:
     clicks = int(data['results']['userClicks'])
@@ -163,25 +171,27 @@ def commaify(value):
 
 def get_bitly_tweets(user):
   url = 'http://twitter.com/statuses/user_timeline/%s.json?count=200' % user
+  result = None
+  
   try:
-    handle=urllib2.urlopen(url)
-  except urllib2.HTTPError, err:
-    if err.code == 404:
-      logging.error('Failed to fetch, Invalid User: %s', url)
-      raise InvalidUserError
-    elif err.code == 401:
-      logging.error('User has protected twitter feed %s', url)
-      raise ProtectedUserError
-    else:
-      logging.error('Twitter error %s (%s)', url, err.code)
-      raise TwitterError
-  except:
-    logging.error('Stupid urlfetch error')
+    result = urlfetch.fetch(url)
+  except Exception, e:
+    logging.error('motherfucking urlfetch timeout %s (%s)', url, str(e))
+    raise TwitterError
+    
+  if result.status_code == 404:
+    logging.error('Failed to fetch, Invalid User: %s', url)
+    raise InvalidUserError
+  elif result.status_code == 401:
+    logging.error('User has protected twitter feed %s', url)
+    raise ProtectedUserError
+  elif result.status_code != 200:
+    logging.error('urlfetch error %s (%s)', url, result.status_code)
     raise TwitterError
 
   results = []
   reference_epoch = time.time()
-  data = json.loads(handle.read())
+  data = json.loads(result.content)
   followers_count = float(data[0]['user']['followers_count'])
   total_clicks = 0
   total_links = 0
@@ -359,19 +369,19 @@ class Cron(webapp.RequestHandler):
     render_page = template.render(path, template_values)
     memcache.add(username, render_page, 86400)
     add_user_report(username, render_page)
+    logging.info('cron: refreshed %s', username)
   
   def get(self):
     refresh = []
     time_now = datetime.datetime.now()
-    result_list = db.GqlQuery("SELECT * FROM Report ORDER By last_updated ASC LIMIT 1")
+    result_list = db.GqlQuery("SELECT * FROM Report ORDER By last_updated ASC LIMIT 5")
     for res in result_list:
       delta = time_now - res.last_updated
-      logging.info('cron: user %s Now: %s/Processing: %s (delta %d)' %
-                   (res.username, str(time_now), str(res.last_updated),
-                    delta.seconds))
-      if delta.seconds >= 72000:
+      if delta.seconds >= 3600: # TODO: something here is broken;
         refresh.append(res.username)
-        logging.info('cron: Adding %s to the refresh list', res.username)
+        
+    random.shuffle(refresh)
+    
     for user in refresh:
       self.refresh(user, time_now)
       
